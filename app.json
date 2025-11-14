@@ -1,15 +1,19 @@
 {
   "expo": {
-    "name": "NoticeAPP",
-    "slug": "NoticeAPP",
+    "name": "Encrypted Notes",
+    "slug": "encrypted-notes",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "noticeapp",
+    "scheme": "encryptednotes",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Notizen koennen Bilder aus deiner Galerie anhaengen.",
+        "NSMicrophoneUsageDescription": "Audioaufnahmen werden genutzt, um Sprachaufnahmen lokal zu speichern."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,19 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_AUDIO",
+        "RECORD_AUDIO"
+      ],
+      "androidNavigationBar": {
+        "backgroundColor": "#0f1013",
+        "barStyle": "light",
+        "visible": "leanback"
+      },
+      "package": "com.encryptednotes.app",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -38,11 +54,19 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "56382197-3902-491f-904a-ba89bbda6949"
+      }
     }
   }
 }
