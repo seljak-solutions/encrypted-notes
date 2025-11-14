@@ -6,13 +6,22 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "prebuildCommand": "npx expo prebuild --platform android"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "prebuildCommand": "npx expo prebuild --platform android"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "prebuildCommand": "npx expo prebuild --platform android"
+      }
     }
   },
   "submit": {
