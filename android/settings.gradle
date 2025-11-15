@@ -33,7 +33,5 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'Encrypted Notes'
 
-expoAutolinking.useExpoVersionCatalog()
-
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
