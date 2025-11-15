@@ -67,7 +67,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-    './plugins/withAndroidBuildGradle.js',
   ],
   experiments: {
     typedRoutes: true,

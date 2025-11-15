@@ -40,4 +40,4 @@ app-example
 
 # generated native folders
 /ios
-# keep android committed for EAS builds
+/android

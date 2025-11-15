@@ -18,7 +18,9 @@
       "Bash(rm:*)",
       "Bash(git push:*)",
       "Bash(gh:*)",
-      "Bash(npx eas-cli:*)"
+      "Bash(npx eas-cli:*)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
