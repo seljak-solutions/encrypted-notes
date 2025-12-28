@@ -8,9 +8,9 @@ Diese Datenschutzerklärung beschreibt, wie die App "Encrypted Notes" (im Folgen
 
 ## 2. Verantwortlicher
 
-[Ihr Name/Firmenname]
-[Ihre Adresse]
-[Ihre E-Mail-Adresse]
+Lukjan Artemenko
+Wohlerstrasse 4, 5619 Büttikon AG, Schweiz
+Seljak.Soulutions@gmail.com
 
 ## 3. Grundsatz: Keine Datensammlung
 
@@ -99,13 +99,13 @@ Die App richtet sich an alle Altersgruppen. Da keine Daten gesammelt werden, bes
 ## 12. Änderungen dieser Datenschutzerklärung
 
 Wir behalten uns vor, diese Datenschutzerklärung zu aktualisieren. Änderungen werden über App-Updates kommuniziert. Die jeweils aktuelle Version finden Sie unter:
-https://github.com/[IhrUsername]/encrypted-notes/blob/master/PRIVACY_POLICY.md
+https://github.com/seljak-solutions/encrypted-notes/blob/master/PRIVACY_POLICY.md
 
 ## 13. Kontakt
 
 Bei Fragen zum Datenschutz können Sie uns kontaktieren:
 
-[Ihre E-Mail-Adresse]
+Seljak.Soulutions@gmail.com
 
 ---
 
