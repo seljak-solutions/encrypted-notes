@@ -1,4 +1,4 @@
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ImageBackground, StyleSheet, View } from 'react-native';
 
 import { palette } from '@/src/theme/palette';
 
@@ -6,24 +6,29 @@ const dusk = palette.dusk;
 
 export const InitialSplash = () => {
   return (
-    <View style={[styles.container, { backgroundColor: dusk.background }]}> 
-      <Image source={require('@/assets/images/icon.png')} style={styles.icon} resizeMode="contain" />
-      <ActivityIndicator size="large" color={dusk.accent} style={styles.loader} />
-    </View>
+    <ImageBackground
+      source={require('@/assets/images/loadingscreen.png')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        <ActivityIndicator size="large" color={dusk.accent} />
+      </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  icon: {
-    width: 120,
-    height: 120,
-  },
-  loader: {
-    marginTop: 32,
+    paddingBottom: 48,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
 });

@@ -1,6 +1,6 @@
 import { getAllAsync, getFirstAsync, runQuery } from '@/src/db';
 import { stripHtml } from '@/src/utils/text';
-import { ChecklistItem, NoteInput, NoteRecord } from './types';
+import { ChecklistItem, LinkItem, NoteInput, NoteRecord } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const serialize = (value?: any) => JSON.stringify(value ?? []);
@@ -18,6 +18,7 @@ const mapRow = (row: any): NoteRecord => ({
   tags: parse<string[]>(row.tags),
   checklist: parse<ChecklistItem[]>(row.checklist),
   attachments: parse(row.attachments),
+  links: parse<LinkItem[]>(row.links),
   color: row.color ?? null,
   pinned: Boolean(row.pinned),
   is_locked: Boolean(row.is_locked),
@@ -56,8 +57,8 @@ export const noteRepository = {
     const plainText = note.plainText ?? stripHtml(note.content);
 
     await runQuery(
-      `INSERT INTO notes (id, title, content, plain_text, tags, checklist, attachments, color, pinned, is_locked, lock_payload, lock_version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO notes (id, title, content, plain_text, tags, checklist, attachments, links, color, pinned, is_locked, lock_payload, lock_version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         content = excluded.content,
@@ -65,6 +66,7 @@ export const noteRepository = {
         tags = excluded.tags,
         checklist = excluded.checklist,
         attachments = excluded.attachments,
+        links = excluded.links,
         color = excluded.color,
         pinned = excluded.pinned,
         is_locked = excluded.is_locked,
@@ -79,6 +81,7 @@ export const noteRepository = {
         serialize(note.tags ?? []),
         serialize(note.checklist ?? []),
         serialize(note.attachments ?? []),
+        serialize(note.links ?? []),
         note.color ?? null,
         note.pinned ? 1 : 0,
         note.isLocked ? 1 : 0,

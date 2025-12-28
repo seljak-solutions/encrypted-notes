@@ -14,11 +14,34 @@ import { initialTheme, useThemeStore } from '@/src/stores/useThemeStore';
 import { palette, ThemeName } from '@/src/theme/palette';
 import { useLanguageStore } from '@/src/stores/useLanguageStore';
 
+const NAV_BAR_COLORS: Record<ThemeName, string> = {
+  light: '#FFFFFF',
+  dusk: '#222534',
+  dark: '#121212',
+};
+
+const applyNavigationBarTheme = (theme: ThemeName) => {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  const buttonStyle = theme === 'light' ? 'dark' : 'light';
+
+  NavigationBar.setBehaviorAsync('overlay-swipe').catch((error) =>
+    console.warn('NavigationBar behavior failed', error)
+  );
+  const backgroundColor = NAV_BAR_COLORS[theme] ?? '#000000';
+
+  NavigationBar.setBackgroundColorAsync(backgroundColor).catch((error) =>
+    console.warn('NavigationBar color failed', error)
+  );
+  NavigationBar.setButtonStyleAsync(buttonStyle).catch((error) =>
+    console.warn('NavigationBar button style failed', error)
+  );
+};
+
 if (Platform.OS === 'android') {
-  const startupColor = palette[initialTheme].background;
-  const startupButtonStyle = initialTheme === 'light' ? 'dark' : 'light';
-  NavigationBar.setBackgroundColorAsync(startupColor).catch(() => undefined);
-  NavigationBar.setButtonStyleAsync(startupButtonStyle).catch(() => undefined);
+  applyNavigationBarTheme(initialTheme);
 }
 
 export const unstable_settings = {
@@ -75,28 +98,7 @@ export default function RootLayout() {
   }, [initialized, languageInitialized]);
 
   useEffect(() => {
-    if (Platform.OS !== 'android') {
-      return;
-    }
-
-    const color = palette[theme].background;
-    const buttonStyle = theme === 'light' ? 'dark' : 'light';
-
-    const applyNavigationBar = async () => {
-      try {
-        await NavigationBar.setBackgroundColorAsync(color);
-      } catch (error) {
-        console.warn('NavigationBar color failed', error);
-      }
-
-      try {
-        await NavigationBar.setButtonStyleAsync(buttonStyle);
-      } catch (error) {
-        console.warn('NavigationBar button style failed', error);
-      }
-    };
-
-    applyNavigationBar();
+    applyNavigationBarTheme(theme);
   }, [theme]);
 
   const navigationTheme = useMemo(() => buildNavigationTheme(theme), [theme]);
@@ -117,6 +119,8 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+
 
 
 

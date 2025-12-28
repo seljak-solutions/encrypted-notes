@@ -27,6 +27,11 @@ export const getDatabase = () => {
   } catch (error) {
     console.warn('Failed to add lock_version column', error);
   }
+  try {
+    ensureColumnExists(db, 'notes', 'links', "TEXT DEFAULT '[]'");
+  } catch (error) {
+    console.warn('Failed to add links column', error);
+  }
   database = db;
   return db;
 };

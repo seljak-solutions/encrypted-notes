@@ -9,16 +9,19 @@ import {
   Platform,
   Pressable,
   Modal,
-  Alert,
   Switch,
   GestureResponderEvent,
   useWindowDimensions,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
-import { NoteInput, NoteRecord, ChecklistItem, Attachment } from '@/src/features/notes/types';
+import { NoteInput, NoteRecord, ChecklistItem, Attachment, LinkItem } from '@/src/features/notes/types';
+import { AppDialog, type DialogConfig } from '@/src/components/AppDialog';
+import { LOCK_PAYLOAD_VERSION, parseLockPayload, type LockedAttachmentDescriptor } from '@/src/features/notes/lockPayload';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { mediaService } from '@/src/features/media/mediaService';
@@ -27,17 +30,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { encryptNotePayload, type SecureNotePayload } from '@/src/utils/encryption';
 import { Image } from 'expo-image';
 import { Audio, Video } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { embedAttachmentData, AttachmentWithData } from '@/src/features/media/attachmentSerializer';
-
 interface Props {
   note?: NoteRecord | null;
   onPersist: (payload: NoteInput & { id?: string; createdAt?: number }) => Promise<void>;
   onDelete?: () => Promise<void>;
   initialLockPassword?: string | null;
 }
-
 const QuickActionButton = ({
   icon,
   label,
@@ -63,7 +63,6 @@ const QuickActionButton = ({
     ) : null}
   </Pressable>
 );
-
 const AttachmentCard = ({
   attachment,
   onRemove,
@@ -121,19 +120,16 @@ const AttachmentCard = ({
     </Pressable>
   </Pressable>
 );
-
 type ActionSheetAction = {
   label: string;
   onPress?: () => void;
   variant?: 'default' | 'accent' | 'destructive';
 };
-
 type ActionSheetConfig = {
   title: string;
   message?: string;
   actions: ActionSheetAction[];
 };
-
 export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }: Props) => {
   const { colors } = useAppTheme();
   const { t, language } = useTranslation();
@@ -147,16 +143,23 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
   const [tagsInput, setTagsInput] = useState(note?.tags?.join(', ') ?? '');
   const [checklist, setChecklist] = useState<ChecklistItem[]>(note?.checklist ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(note?.attachments ?? []);
+  const [links, setLinks] = useState<LinkItem[]>(note?.links ?? []);
   const [pinned, setPinned] = useState(note?.pinned ?? false);
   const [isLocked, setIsLocked] = useState(note?.is_locked ?? false);
   const [isRecording, setIsRecording] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lockPassword, setLockPassword] = useState<string | null>(initialLockPassword ?? null);
   const [lockPromptVisible, setLockPromptVisible] = useState(false);
+  const [lockWarningVisible, setLockWarningVisible] = useState(false);
   const [lockDraft, setLockDraft] = useState({ password: '', confirm: '' });
   const [lockError, setLockError] = useState<string | null>(null);
   const [actionSheet, setActionSheet] = useState<ActionSheetConfig | null>(null);
   const [statusModal, setStatusModal] = useState<{ message: string; variant?: 'success' | 'warning' } | null>(null);
+  const [dialogConfig, setDialogConfig] = useState<DialogConfig | null>(null);
+  const [lockProcessing, setLockProcessing] = useState(false);
+  const [lockProcessingProgress, setLockProcessingProgress] = useState(0);
+  const closeDialog = () => setDialogConfig(null);
+  const openDialog = (config: DialogConfig) => setDialogConfig(config);
   const [imagePreview, setImagePreview] = useState<Attachment | null>(null);
   const [videoPreview, setVideoPreview] = useState<Attachment | null>(null);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
@@ -164,34 +167,29 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [audioPlaybackState, setAudioPlaybackState] = useState<'playing' | 'paused' | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     setTitle(note?.title ?? '');
     setContent(note?.content ?? '<p></p>');
     setTagsInput(note?.tags?.join(', ') ?? '');
     setChecklist(note?.checklist ?? []);
     setAttachments(note?.attachments ?? []);
+    setLinks(note?.links ?? []);
     setPinned(note?.pinned ?? false);
     setIsLocked(note?.is_locked ?? false);
   }, [note]);
-
   useEffect(() => {
     setLockPassword(initialLockPassword ?? null);
   }, [initialLockPassword]);
-
-
   useEffect(() => () => {
     if (statusTimerRef.current) {
       clearTimeout(statusTimerRef.current);
     }
   }, []);
-
   useEffect(() => () => {
     if (audioPlayerRef.current) {
       audioPlayerRef.current.unloadAsync();
     }
   }, []);
-
   const headingIconMap = useMemo(
     () => ({
       [actions.heading1]: () => <Text style={[styles.toolbarHeading, { color: colors.text }]}>H1</Text>,
@@ -199,7 +197,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
     }),
     [colors.text]
   );
-
   const tags = useMemo(
     () =>
       tagsInput
@@ -208,55 +205,71 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         .filter(Boolean),
     [tagsInput]
   );
-
   const handleAddChecklistItem = () => {
     setChecklist((prev) => [...prev, { id: uuidv4(), text: t('noteComposer.checklist.newItem'), done: false }]);
   };
-
   const updateChecklistText = (id: string, text: string) => {
     setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, text } : item)));
   };
-
   const toggleChecklistItem = (id: string) => {
     setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
   };
-
   const removeChecklistItem = (id: string) => {
     setChecklist((prev) => prev.filter((item) => item.id !== id));
   };
-
-
-
+  const handleAddLink = () => {
+    setLinks((prev) => [...prev, { id: uuidv4(), label: t('noteComposer.links.defaultDescription'), url: '' }]);
+  };
+  const updateLinkField = (id: string, field: 'label' | 'url', value: string) => {
+    setLinks((prev) => prev.map((link) => (link.id === id ? { ...link, [field]: value } : link)));
+  };
+  const removeLink = (id: string) => {
+    setLinks((prev) => prev.filter((link) => link.id !== id));
+  };
+  const openLink = async (link: LinkItem) => {
+    const rawUrl = link.url.trim();
+    if (!rawUrl) {
+      openDialog({ title: t('noteComposer.links.openErrorTitle'), message: t('noteComposer.links.openMissingUrl') });
+      return;
+    }
+    const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+    try {
+      const supported = await Linking.canOpenURL(normalizedUrl);
+      if (!supported) {
+        openDialog({ title: t('noteComposer.links.openErrorTitle'), message: t('noteComposer.links.openUnsupported') });
+        return;
+      }
+      await Linking.openURL(normalizedUrl);
+    } catch (error) {
+      openDialog({ title: t('noteComposer.links.openErrorTitle'), message: (error as Error).message });
+    }
+  };
   const removeAttachment = async (id: string, uri: string) => {
     setAttachments((prev) => prev.filter((item) => item.id !== id));
     await mediaService.removeAttachment(uri);
   };
-
   const appendAttachment = (attachment?: Attachment) => {
     if (!attachment) return;
     setAttachments((prev) => [...prev, attachment]);
   };
-
   const handleLockToggle = (value: boolean) => {
     if (value) {
       if (lockPassword) {
         setIsLocked(true);
+        setLockWarningVisible(true);
         return;
       }
       setIsLocked(true);
       setLockPromptVisible(true);
       return;
     }
-
     setIsLocked(false);
     setLockPassword(null);
   };
-
   const resetLockDraft = () => {
     setLockDraft({ password: '', confirm: '' });
     setLockError(null);
   };
-
   const closeLockPrompt = () => {
     setLockPromptVisible(false);
     if (!lockPassword) {
@@ -264,23 +277,20 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
     }
     resetLockDraft();
   };
-
   const confirmLockPassword = () => {
     if (lockDraft.password.length < 6) {
       setLockError(t('noteComposer.lock.errorLength'));
       return;
     }
-
     if (lockDraft.password !== lockDraft.confirm) {
       setLockError(t('noteComposer.lock.errorMismatch'));
       return;
     }
-
     setLockPassword(lockDraft.password);
     setLockPromptVisible(false);
     resetLockDraft();
+    setLockWarningVisible(true);
   };
-
   const showStatusModal = (message: string, variant: 'success' | 'warning' = 'success') => {
     if (statusTimerRef.current) {
       clearTimeout(statusTimerRef.current);
@@ -291,9 +301,7 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       statusTimerRef.current = null;
     }, 1600);
   };
-
   const dismissActionSheet = () => setActionSheet(null);
-
   const stopAudioPlayback = async () => {
     if (audioPlayerRef.current) {
       try {
@@ -307,7 +315,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
     setActiveAudioId(null);
     setAudioPlaybackState(null);
   };
-
   const handleAudioAttachment = async (attachment: Attachment) => {
     try {
       if (activeAudioId === attachment.id) {
@@ -320,7 +327,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         }
         return;
       }
-
       await stopAudioPlayback();
       const { sound } = await Audio.Sound.createAsync({ uri: attachment.uri });
       audioPlayerRef.current = sound;
@@ -334,29 +340,25 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       });
       await sound.playAsync();
     } catch (error) {
-      Alert.alert(t('noteComposer.audio.playbackError'), (error as Error).message);
+      openDialog({ title: t('noteComposer.audio.playbackError'), message: (error as Error).message });
       await stopAudioPlayback();
     }
   };
-
   const handleAttachmentPress = (attachment: Attachment) => {
     if (attachment.type === 'image') {
       setImagePreview(attachment);
       return;
     }
-
     if (attachment.type === 'video') {
       setVideoPreview(attachment);
       return;
     }
-
     void handleAudioAttachment(attachment);
   };
-
   const shareAttachment = async (attachment: Attachment) => {
     try {
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert(t('noteComposer.share.unavailable'), t('noteComposer.share.unsupported'));
+    openDialog({ title: t('noteComposer.share.unavailable'), message: t('noteComposer.share.unsupported') });
         return;
       }
       await Sharing.shareAsync(attachment.uri, {
@@ -364,16 +366,15 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         dialogTitle: t('noteComposer.share.dialogTitle'),
       });
     } catch (error) {
-      Alert.alert(t('noteComposer.share.failed'), (error as Error).message);
+      openDialog({ title: t('noteComposer.share.failed'), message: (error as Error).message });
     }
   };
-
   const exportAttachment = async (attachment: Attachment) => {
     try {
       if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (!permissions.granted) {
-          Alert.alert(t('noteComposer.export.noFolderTitle'), t('noteComposer.export.noFolderMessage'));
+      openDialog({ title: t('noteComposer.export.noFolderTitle'), message: t('noteComposer.export.noFolderMessage') });
           return;
         }
         const extension = attachment.name?.split('.').pop() ?? (attachment.type === 'image' ? 'jpg' : 'm4a');
@@ -392,9 +393,8 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         showStatusModal(t('noteComposer.export.copySaved'));
         return;
       }
-
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert(t('noteComposer.export.unavailable'), t('noteComposer.export.unsupported'));
+    openDialog({ title: t('noteComposer.export.unavailable'), message: t('noteComposer.export.unsupported') });
         return;
       }
       await Sharing.shareAsync(attachment.uri, {
@@ -402,10 +402,9 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         dialogTitle: t('noteComposer.export.dialogTitle'),
       });
     } catch (error) {
-      Alert.alert(t('noteComposer.export.failed'), (error as Error).message);
+      openDialog({ title: t('noteComposer.export.failed'), message: (error as Error).message });
     }
   };
-
   const withAttachmentHandling = async (
     action: () => Promise<Attachment | undefined>,
     errorTitle: string
@@ -414,10 +413,9 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       const attachment = await action();
       appendAttachment(attachment);
     } catch (error) {
-      Alert.alert(errorTitle, (error as Error).message);
+      openDialog({ title: errorTitle, message: (error as Error).message });
     }
   };
-
   const handleImageAction = () => {
     setActionSheet({
       title: t('noteComposer.actions.image.title'),
@@ -436,33 +434,29 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       ],
     });
   };
-
   const startRecording = async () => {
     try {
       await mediaService.startAudioRecording();
       setIsRecording(true);
     } catch (error) {
-      Alert.alert(t('noteComposer.audio.startError'), (error as Error).message);
+      openDialog({ title: t('noteComposer.audio.startError'), message: (error as Error).message });
     }
   };
-
   const stopRecording = async () => {
     try {
       const attachment = await mediaService.stopAudioRecording();
       appendAttachment(attachment);
     } catch (error) {
-      Alert.alert(t('noteComposer.audio.recordingSaveError'), (error as Error).message);
+      openDialog({ title: t('noteComposer.audio.recordingSaveError'), message: (error as Error).message });
     } finally {
       setIsRecording(false);
     }
   };
-
   const handleAudioAction = () => {
     if (isRecording) {
       void stopRecording();
       return;
     }
-
     setActionSheet({
       title: t('noteComposer.actions.audio.title'),
       message: t('noteComposer.actions.audio.message'),
@@ -481,7 +475,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       ],
     });
   };
-
   const handleVideoAction = () => {
     setActionSheet({
       title: t('noteComposer.actions.video.title'),
@@ -500,51 +493,75 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       ],
     });
   };
-
   const handleSave = async () => {
     if (!title.trim()) {
       showStatusModal(t('noteComposer.titleMissing'), 'warning');
       return;
     }
-
     setSaving(true);
+    const existingLockPayload = parseLockPayload(note?.lock_payload ?? null);
+    const newEncryptedAttachments: LockedAttachmentDescriptor[] = [];
+    let attachmentsToCleanUp: Attachment[] = [];
+    let encryptedToCleanUp: LockedAttachmentDescriptor[] = [];
     try {
       let nextContent = content;
       let nextPlain = stripHtml(content);
       let nextChecklist = checklist;
       let nextAttachments = attachments;
+      const normalizedLinks = links
+        .map((link) => ({ ...link, label: link.label.trim(), url: link.url.trim() }))
+        .filter((link) => link.label || link.url);
+      let nextLinks = normalizedLinks;
       let lockPayload: string | null = note?.lock_payload ?? null;
       let lockVersion: number | null = note?.lock_version ?? null;
-
       if (isLocked) {
         if (!lockPassword) {
           showStatusModal(t('noteComposer.lock.setPasswordPrompt'), 'warning');
           return;
         }
-        let secureAttachments: AttachmentWithData[] = [];
+        if (attachments.length) {
+          setLockProcessing(true);
+          setLockProcessingProgress(0);
+        }
         try {
-          secureAttachments = await Promise.all(attachments.map((attachment) => embedAttachmentData(attachment)));
+          for (let idx = 0; idx < attachments.length; idx++) {
+            const descriptor = await mediaService.encryptAttachmentForLock(attachments[idx], lockPassword);
+            newEncryptedAttachments.push(descriptor);
+            if (attachments.length) {
+              setLockProcessingProgress((idx + 1) / attachments.length);
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
+          }
         } catch {
-          throw new Error('LOCK_ATTACHMENT_SERIALIZE_FAILED');
+          await mediaService.removeEncryptedAttachments(newEncryptedAttachments);
+          throw new Error('LOCK_ATTACHMENT_ENCRYPT_FAILED');
         }
         const securePayload: SecureNotePayload = {
           content,
           plainText: nextPlain,
           checklist,
-          attachments: secureAttachments,
+          links: normalizedLinks,
         };
         const encrypted = await encryptNotePayload(lockPassword, securePayload);
-        lockPayload = JSON.stringify(encrypted);
-        lockVersion = encrypted.version;
+        const envelope = {
+          version: LOCK_PAYLOAD_VERSION,
+          payload: encrypted,
+          attachments: newEncryptedAttachments,
+        };
+        lockPayload = JSON.stringify(envelope);
+        lockVersion = envelope.version;
         nextContent = t('noteComposer.lock.encryptedHtml');
         nextPlain = t('noteComposer.lock.encryptedPreview');
         nextChecklist = [];
         nextAttachments = [];
+        nextLinks = [];
+        encryptedToCleanUp = existingLockPayload?.attachments ?? [];
+        attachmentsToCleanUp = attachments;
       } else {
         lockPayload = null;
         lockVersion = null;
+        encryptedToCleanUp = existingLockPayload?.attachments ?? [];
       }
-
       await onPersist({
         id: note?.id,
         title: title.trim(),
@@ -553,40 +570,49 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
         tags,
         checklist: nextChecklist,
         attachments: nextAttachments,
+        links: nextLinks,
         pinned,
         isLocked,
         lockPayload,
         lockVersion,
         createdAt: note?.created_at,
       });
-
-      if (isLocked && attachments.length) {
-        await Promise.all(attachments.map((attachment) => mediaService.removeAttachment(attachment.uri)));
+      setLinks(nextLinks);
+      if (attachmentsToCleanUp.length) {
+        await Promise.all(
+          attachmentsToCleanUp.map((attachment) => mediaService.removeAttachment(attachment.uri))
+        );
+      }
+      if (encryptedToCleanUp.length) {
+        await mediaService.removeEncryptedAttachments(encryptedToCleanUp);
       }
       showStatusModal(t('noteComposer.status.saved'));
     } catch (error) {
-      if ((error as Error).message === 'LOCK_ATTACHMENT_SERIALIZE_FAILED') {
-        Alert.alert(t('noteComposer.lock.attachmentEncryptionFailed'));
+      if (newEncryptedAttachments.length) {
+        await mediaService.removeEncryptedAttachments(newEncryptedAttachments);
+      }
+      if ((error as Error).message === 'LOCK_ATTACHMENT_ENCRYPT_FAILED') {
+        setDialogConfig({ title: t('noteComposer.lock.attachmentEncryptionFailed') });
       } else {
-        Alert.alert(t('noteComposer.error.saveFailed'), (error as Error).message);
+        setDialogConfig({ title: t('noteComposer.error.saveFailed'), message: (error as Error).message });
       }
     } finally {
+      setLockProcessing(false);
+      setLockProcessingProgress(0);
       setSaving(false);
     }
   };
-
   const handleDelete = () => {
     if (!onDelete || !note?.id) return;
-    Alert.alert(t('noteComposer.delete.title'), t('noteComposer.delete.message'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => onDelete(),
-      },
-    ]);
+    openDialog({
+      title: t('noteComposer.delete.title'),
+      message: t('noteComposer.delete.message'),
+      actions: [
+        { label: t('common.cancel') },
+        { label: t('common.delete'), variant: 'destructive', onPress: () => onDelete && onDelete() },
+      ],
+    });
   };
-
   const openAttachmentMenu = (attachment: Attachment) => {
     setActionSheet({
       title: attachment.name ?? t('noteComposer.attachmentMenu.titleFallback'),
@@ -608,7 +634,14 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
       ],
     });
   };
-
+  const encryptingStatusRaw = t('noteComposer.lock.encryptingStatus');
+  const encryptingStatusLabel =
+    encryptingStatusRaw === 'noteComposer.lock.encryptingStatus'
+      ? (() => {
+          const loadingText = t('common.loading');
+          return loadingText === 'common.loading' ? 'Encrypting attachments…' : loadingText;
+        })()
+      : encryptingStatusRaw;
   return (
     <>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -649,7 +682,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
                 </View>
               </View>
             </View>
-
             <View style={[styles.sectionSpacing, styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.sectionCardInner}>
                 <View style={styles.sectionHeaderRow}>
@@ -691,6 +723,97 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
                     style={{ minHeight: 220 }}
                   />
                 </View>
+              </View>
+            </View>
+            <View style={[styles.sectionSpacing, styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.sectionCardInner}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('noteComposer.sections.attachments.title')}</Text>
+                </View>
+                <View style={styles.quickActionsRow}>
+                  <QuickActionButton icon="image-outline" label={t('noteComposer.quickActions.image')} onPress={handleImageAction} colors={colors} showLabel={showAttachmentLabels} />
+                  <QuickActionButton icon="videocam-outline" label={t('noteComposer.quickActions.video')} onPress={handleVideoAction} colors={colors} showLabel={showAttachmentLabels} />
+                  <QuickActionButton
+                    icon={isRecording ? 'stop-circle-outline' : 'mic-outline'}
+                    label={isRecording ? t('noteComposer.quickActions.stop') : t('noteComposer.quickActions.audio')}
+                    onPress={handleAudioAction}
+                    colors={colors}
+                    showLabel={showAttachmentLabels}
+                  />
+                </View>
+                {attachments.length ? (
+                  <View style={styles.attachmentList}>
+                    {attachments.map((att) => (
+                      <AttachmentCard
+                        key={att.id}
+                        attachment={att}
+                        colors={colors}
+                        onRemove={() => removeAttachment(att.id, att.uri)}
+                        onPress={() => handleAttachmentPress(att)}
+                        onMenu={() => openAttachmentMenu(att)}
+                        playbackState={activeAudioId === att.id ? audioPlaybackState : null}
+                        audioPlayingLabel={t('noteComposer.audio.nowPlaying')}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[styles.hintText, { color: colors.muted }]}>{t('noteComposer.sections.attachments.empty')}</Text>
+                )}
+              </View>
+            </View>
+            <View style={[styles.sectionSpacing, styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.sectionCardInner}>
+                <View style={styles.sectionHeaderRow}>
+                  <View>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('noteComposer.sections.links.title')}</Text>
+                    <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>{t('noteComposer.sections.links.subtitle')}</Text>
+                  </View>
+                  <Pressable style={[styles.outlineButton, { borderColor: colors.border }]} onPress={handleAddLink}>
+                    <Ionicons name="add" size={16} color={colors.text} />
+                    <Text style={[styles.outlineButtonText, { color: colors.text }]}>{t('noteComposer.sections.links.addButton')}</Text>
+                  </Pressable>
+                </View>
+                {links.length ? (
+                  <View style={styles.linkList}>
+                    {links.map((link) => (
+                      <View key={link.id} style={[styles.linkRow, { borderColor: colors.border }]}>
+                        <View style={styles.linkFields}>
+                          <TextInput
+                            value={link.label}
+                            onChangeText={(text) => updateLinkField(link.id, 'label', text)}
+                            placeholder={t('noteComposer.sections.links.descriptionPlaceholder')}
+                            placeholderTextColor={colors.muted}
+                            style={[styles.linkInput, { borderColor: colors.border, color: colors.text }]}
+                          />
+                          <View style={styles.linkUrlRow}>
+                            <TextInput
+                              value={link.url}
+                              onChangeText={(text) => updateLinkField(link.id, 'url', text)}
+                              placeholder={t('noteComposer.sections.links.urlPlaceholder')}
+                              placeholderTextColor={colors.muted}
+                              autoCapitalize="none"
+                              autoCorrect={false}
+                              keyboardType="url"
+                              style={[styles.linkInput, styles.linkUrlInput, { borderColor: colors.border, color: colors.text, flex: 1 }]}
+                            />
+                            <Pressable
+                              style={[styles.linkOpenButton, { borderColor: colors.border }]}
+                              onPress={() => void openLink(link)}
+                              accessibilityHint={t('noteComposer.links.openHint')}
+                            >
+                              <Ionicons name="link-outline" size={16} color={colors.accent} />
+                            </Pressable>
+                          </View>
+                        </View>
+                        <Pressable style={styles.linkRemoveButton} onPress={() => removeLink(link.id)}>
+                          <Ionicons name="close" size={18} color={colors.muted} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={[styles.hintText, { color: colors.muted }]}>{t('noteComposer.sections.links.empty')}</Text>
+                )}
               </View>
             </View>
 
@@ -736,42 +859,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
                 )}
               </View>
             </View>
-            <View style={[styles.sectionSpacing, styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.sectionCardInner}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('noteComposer.sections.attachments.title')}</Text>
-                </View>
-                <View style={styles.quickActionsRow}>
-                  <QuickActionButton icon="image-outline" label={t('noteComposer.quickActions.image')} onPress={handleImageAction} colors={colors} showLabel={showAttachmentLabels} />
-                  <QuickActionButton icon="videocam-outline" label={t('noteComposer.quickActions.video')} onPress={handleVideoAction} colors={colors} showLabel={showAttachmentLabels} />
-                  <QuickActionButton
-                    icon={isRecording ? 'stop-circle-outline' : 'mic-outline'}
-                    label={isRecording ? t('noteComposer.quickActions.stop') : t('noteComposer.quickActions.audio')}
-                    onPress={handleAudioAction}
-                    colors={colors}
-                    showLabel={showAttachmentLabels}
-                  />
-                </View>
-                {attachments.length ? (
-                  <View style={styles.attachmentList}>
-                    {attachments.map((att) => (
-                      <AttachmentCard
-                        key={att.id}
-                        attachment={att}
-                        colors={colors}
-                        onRemove={() => removeAttachment(att.id, att.uri)}
-                        onPress={() => handleAttachmentPress(att)}
-                        onMenu={() => openAttachmentMenu(att)}
-                        playbackState={activeAudioId === att.id ? audioPlaybackState : null}
-                        audioPlayingLabel={t('noteComposer.audio.nowPlaying')}
-                      />
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={[styles.hintText, { color: colors.muted }]}>{t('noteComposer.sections.attachments.empty')}</Text>
-                )}
-              </View>
-            </View>
 
           <View style={[styles.sectionSpacing, styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.sectionCardInner}>
@@ -801,7 +888,6 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
               )}
             </View>
           </View>
-
             <View style={[styles.sectionSpacing, styles.footerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.footerCardInner}>
                 {note?.id ? (
@@ -874,6 +960,24 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
               </View>
             </View>
           </Pressable>
+        </Modal>
+      ) : null}
+      {lockProcessing ? (
+        <Modal transparent visible animationType="fade">
+          <View style={styles.lockProgressOverlay}>
+            <View style={[styles.lockProgressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ActivityIndicator color={colors.accent} size="large" />
+              <Text style={[styles.lockProgressTitle, { color: colors.text }]}>{encryptingStatusLabel}</Text>
+              <View style={[styles.lockProgressBar, { borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.lockProgressFill,
+                    { backgroundColor: colors.accent, width: `${Math.max(10, lockProcessingProgress * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
         </Modal>
       ) : null}
       {statusModal ? (
@@ -961,6 +1065,24 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
           </Pressable>
         </Modal>
       ) : null}
+      {lockWarningVisible ? (
+        <Modal transparent animationType="fade" visible onRequestClose={() => setLockWarningVisible(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setLockWarningVisible(false)}>
+            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('noteComposer.lock.warningTitle')}</Text>
+              <Text style={[styles.modalHint, { color: colors.muted }]}>{t('noteComposer.lock.warningBody')}</Text>
+              <View style={styles.modalActions}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalPrimaryButton, { backgroundColor: colors.accent }]}
+                  onPress={() => setLockWarningVisible(false)}
+                >
+                  <Text style={styles.modalPrimaryText}>{t('common.ok')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      ) : null}
       {imagePreview ? (
         <Modal transparent animationType="fade" visible onRequestClose={() => setImagePreview(null)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setImagePreview(null)}>
@@ -973,10 +1095,15 @@ export const NoteComposer = ({ note, onPersist, onDelete, initialLockPassword }:
           </Pressable>
         </Modal>
       ) : null}
+      <AppDialog
+        config={dialogConfig}
+        visible={Boolean(dialogConfig)}
+        fallbackActionLabel={t('common.ok')}
+        onClose={closeDialog}
+      />
     </>
   );
 };
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -1248,6 +1375,46 @@ const styles = StyleSheet.create({
     color: '#f56c6c',
     fontSize: 13,
   },
+  linkList: {
+    gap: 12,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  linkFields: {
+    flex: 1,
+    gap: 8,
+  },
+  linkInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  linkUrlInput: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'Courier New' }),
+  },
+  linkUrlRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  linkOpenButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    padding: 8,
+  },
+  linkRemoveButton: {
+    padding: 6,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
   attachmentList: {
     gap: 10,
   },
@@ -1317,6 +1484,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  lockProgressOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  lockProgressCard: {
+    width: '90%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+    gap: 16,
+  },
+  lockProgressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  lockProgressBar: {
+    width: '100%',
+    height: 10,
+    borderWidth: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  lockProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
   statusModalCard: {
     borderWidth: 1,
     borderRadius: 20,
@@ -1355,11 +1555,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-
-
-
-
 
 
 

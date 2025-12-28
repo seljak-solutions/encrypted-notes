@@ -9,7 +9,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/icon.png',
   scheme: 'encryptednotes',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
+  newArchEnabled: false,
+  splash: {
+    image: './assets/images/loadingscreen.png',
+    resizeMode: 'cover',
+    backgroundColor: '#000000',
+  },
+
   ios: {
     supportsTablet: true,
     infoPlist: {
@@ -24,7 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    edgeToEdgeEnabled: true,
+    edgeToEdgeEnabled: false,
     predictiveBackGestureEnabled: false,
     permissions: ['READ_MEDIA_IMAGES', 'READ_MEDIA_AUDIO', 'RECORD_AUDIO'],
     androidNavigationBar: {
@@ -44,10 +50,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/splash-icon.png',
-        imageWidth: 200,
-        resizeMode: 'contain',
-        backgroundColor: '#ffffff',
+        image: './assets/images/loadingscreen.png',
+        imageWidth: 320,
+        resizeMode: 'cover',
+        backgroundColor: '#000000',
         dark: {
           backgroundColor: '#000000',
         },
@@ -55,22 +61,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-sqlite',
     'expo-secure-store',
+    'expo-font',
+    'expo-web-browser',
     [
       'expo-build-properties',
       {
         android: {
-          compileSdkVersion: 36,
-          targetSdkVersion: 36,
+          compileSdkVersion: 35,
+          targetSdkVersion: 35,
           minSdkVersion: 24,
-          buildToolsVersion: '36.0.0',
-          kotlinVersion: '2.1.20',
+          buildToolsVersion: '35.0.0',
+          kotlinVersion: '2.0.21',
         },
       },
     ],
   ],
   experiments: {
     typedRoutes: true,
-    reactCompiler: true,
+    reactCompiler: false,
   },
   extra: {
     router: {},

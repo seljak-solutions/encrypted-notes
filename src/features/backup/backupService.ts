@@ -9,9 +9,9 @@ import {
   sanitizeAttachmentId,
   AttachmentWithData,
 } from '@/src/features/media/attachmentSerializer';
-import { ATTACHMENT_DIR, ensureAttachmentDir } from '@/src/features/media/mediaService';
+import { ATTACHMENT_DIR, ensureAttachmentDir, mediaService } from '@/src/features/media/mediaService';
 
-const BASE_DIR = FileSystem.Paths.document?.uri ?? FileSystem.Paths.cache.uri;
+const BASE_DIR = FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? '';
 const BACKUP_DIR = `${BASE_DIR}backups`;
 
 const ensureBackupDir = async () => {
@@ -25,6 +25,22 @@ type BackupPayload = {
   version: number;
   exportedAt: number;
   notes: (NoteRecord & { attachments: AttachmentWithData[] })[];
+  encryptedFiles?: { path: string; data: string }[];
+};
+
+type DocumentPickerReturn = Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
+type LegacyDocumentPickerResult =
+  | { type: 'success'; uri: string; name?: string }
+  | { type: 'cancel' };
+
+const pickFirstAsset = (result: DocumentPickerReturn | LegacyDocumentPickerResult) => {
+  if ('type' in result) {
+    return result.type === 'success' ? { uri: result.uri, name: result.name } : null;
+  }
+  if (result.canceled) {
+    return null;
+  }
+  return result.assets?.[0] ?? null;
 };
 
 const embedAttachmentForBackup = async (attachment: Attachment): Promise<AttachmentWithData> => {
@@ -35,8 +51,6 @@ const embedAttachmentForBackup = async (attachment: Attachment): Promise<Attachm
     return { ...attachment };
   }
 };
-
-
 
 export const backupService = {
   async createBackup(): Promise<{ path: string; filename: string }> {
@@ -49,10 +63,12 @@ export const backupService = {
       }))
     );
 
+    const encryptedFiles = await mediaService.dumpEncryptedAttachmentFiles();
     const payload: BackupPayload = {
       version: 1,
       exportedAt: Date.now(),
       notes: enriched,
+      encryptedFiles,
     };
 
     const timestamp = new Date().toISOString().replace(/[:]/g, '-');
@@ -64,9 +80,10 @@ export const backupService = {
 
   async importBackup() {
     const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
-    if (result.type !== 'success') return false;
+    const asset = pickFirstAsset(result as DocumentPickerReturn);
+    if (!asset?.uri) return false;
 
-    const raw = await FileSystem.readAsStringAsync(result.uri, { encoding: 'utf8' });
+    const raw = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'utf8' });
     const payload = JSON.parse(raw) as BackupPayload;
     if (!payload.notes) {
       throw new Error('Backup file ist ungueltig');
@@ -97,6 +114,7 @@ export const backupService = {
         tags: note.tags,
         checklist: note.checklist,
         attachments,
+        links: note.links ?? [],
         color: note.color,
         pinned: note.pinned,
         isLocked: note.is_locked,
@@ -106,6 +124,15 @@ export const backupService = {
       });
     }
 
+    if (payload.encryptedFiles?.length) {
+      for (const file of payload.encryptedFiles) {
+        if (!file.path || !file.data) continue;
+        await mediaService.restoreEncryptedAttachmentFile(file.path, file.data);
+      }
+    }
+
     return true;
   },
 };
+
+

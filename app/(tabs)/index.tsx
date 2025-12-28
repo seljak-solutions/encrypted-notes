@@ -23,7 +23,10 @@ export default function NotesScreen() {
   useFocusEffect(
     useCallback(() => {
       init();
-    }, [init])
+      return () => {
+        setSearch('');
+      };
+    }, [init, setSearch])
   );
 
   const tagOptions = useMemo(() => {
@@ -49,6 +52,7 @@ export default function NotesScreen() {
         </View>
         <FlatList
           data={notes}
+          showsVerticalScrollIndicator={false}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <NoteCard note={item} onPress={() => router.push({ pathname: '/note/[id]', params: { id: item.id } })} />
@@ -60,7 +64,7 @@ export default function NotesScreen() {
               <Text style={[styles.emptySubtitle, { color: colors.muted }]}>{t('notes.list.emptySubtitle')}</Text>
             </View>
           )}
-          contentContainerStyle={notes.length ? { paddingBottom: 12 } : { flex: 1, justifyContent: 'center' }}
+          contentContainerStyle={notes.length ? styles.listContent : styles.listContentEmpty}
         />
         <Pressable style={[styles.fab, { backgroundColor: colors.accent }]} onPress={() => router.push('/note/new')}>
           <Text style={styles.fabText}>+</Text>
@@ -77,7 +81,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 80,
   },
   search: {
     borderWidth: 1,
@@ -120,5 +123,24 @@ const styles = StyleSheet.create({
   tagsTop: {
     marginBottom: 12,
   },
+  listContent: {
+    paddingBottom: 80,
+  },
+  listContentEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+  },
 });
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,15 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Pressable, Modal, StyleSheet } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
 import { NoteComposer } from '@/src/components/NoteComposer';
-import { useNotesStore } from '@/src/stores/useNotesStore';
-import { Attachment, NoteRecord } from '@/src/features/notes/types';
+import { materializeAttachmentFromData, type AttachmentWithData } from '@/src/features/media/attachmentSerializer';
+import { mediaService } from '@/src/features/media/mediaService';
+import { parseLockPayload } from '@/src/features/notes/lockPayload';
 import { noteRepository } from '@/src/features/notes/noteRepository';
-import { decryptNotePayload, type EncryptedPayloadInput } from '@/src/utils/encryption';
+import { Attachment, NoteRecord } from '@/src/features/notes/types';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { materializeAttachmentFromData } from '@/src/features/media/attachmentSerializer';
-import { mediaService } from '@/src/features/media/mediaService';
+import { useNotesStore } from '@/src/stores/useNotesStore';
+import { decryptNotePayload } from '@/src/utils/encryption';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function NoteDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +26,19 @@ export default function NoteDetailsScreen() {
   const [unlockVisible, setUnlockVisible] = useState(false);
   const [sessionLockPassword, setSessionLockPassword] = useState<string | null>(null);
   const hydratedAttachmentsRef = useRef<Attachment[]>([]);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockProgress, setUnlockProgress] = useState(0);
+  const unlockBaseTitle = t('note.unlock.title');
+  const unlockProgressTitle = t('note.unlock.progressTitle');
+  const loadingLabel = t('common.loading');
+  const unlockModalTitle =
+    unlocking && unlockProgressTitle !== 'note.unlock.progressTitle'
+      ? unlockProgressTitle
+      : unlocking
+        ? loadingLabel !== 'common.loading'
+          ? loadingLabel
+          : 'Decrypting'
+        : unlockBaseTitle;
 
   useEffect(() => {
     const current = notes.find((n) => n.id === id);
@@ -54,19 +68,37 @@ export default function NoteDetailsScreen() {
 
   const applyDecryptedNote = useCallback(async (password: string) => {
     if (!note?.lock_payload) return;
+    setUnlocking(true);
+    setUnlockProgress(0);
     try {
-      const payload = JSON.parse(note.lock_payload) as EncryptedPayloadInput;
-      const decrypted = await decryptNotePayload(password, payload);
-      const decryptedAttachments = decrypted.attachments ?? [];
+      const envelope = parseLockPayload(note.lock_payload);
+      if (!envelope) {
+        throw new Error('LOCK_PAYLOAD_INVALID');
+      }
+      const decrypted = await decryptNotePayload(password, envelope.payload);
+      const legacyAttachments = (decrypted as { attachments?: AttachmentWithData[] }).attachments ?? [];
       if (hydratedAttachmentsRef.current.length) {
         await Promise.all(
           hydratedAttachmentsRef.current.map((attachment) => mediaService.removeAttachment(attachment.uri))
         );
         hydratedAttachmentsRef.current = [];
       }
-      const hydratedAttachments = await Promise.all(
-        decryptedAttachments.map((attachment) => materializeAttachmentFromData(attachment))
-      );
+      let hydratedAttachments: Attachment[] = [];
+      if (envelope.attachments?.length) {
+        const total = envelope.attachments.length;
+        hydratedAttachments = [];
+        for (let idx = 0; idx < envelope.attachments.length; idx++) {
+          const attachment = envelope.attachments[idx];
+          const materialized = await mediaService.materializeLockedAttachment(attachment, password);
+          hydratedAttachments.push(materialized);
+          setUnlockProgress((idx + 1) / total);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      } else if (legacyAttachments.length) {
+        hydratedAttachments = await Promise.all(
+          legacyAttachments.map((attachment) => materializeAttachmentFromData(attachment))
+        );
+      }
       hydratedAttachmentsRef.current = hydratedAttachments;
       setEditableNote({
         ...note,
@@ -74,6 +106,7 @@ export default function NoteDetailsScreen() {
         plain_text: decrypted.plainText,
         checklist: decrypted.checklist,
         attachments: hydratedAttachments,
+        links: decrypted.links ?? [],
       });
       setSessionLockPassword(password);
       setUnlockPassword('');
@@ -82,6 +115,9 @@ export default function NoteDetailsScreen() {
     } catch (error) {
       console.warn('Failed to decrypt note', error);
       setUnlockError(t('note.unlock.error'));
+    } finally {
+      setUnlocking(false);
+      setUnlockProgress(0);
     }
   }, [note, t]);
 
@@ -123,34 +159,58 @@ export default function NoteDetailsScreen() {
         <Modal transparent visible={unlockVisible} animationType="fade" onRequestClose={() => router.back()}>
           <View style={[styles.overlay, { backgroundColor: colors.background }]}> 
             <View style={[styles.dialog, { backgroundColor: colors.card, borderColor: colors.border }]}> 
-              <Text style={[styles.dialogTitle, { color: colors.text }]}>{t('note.unlock.title')}</Text>
-              <TextInput
-                placeholder={t('common.password')}
-                placeholderTextColor={colors.muted}
-                value={unlockPassword}
-                onChangeText={(text) => {
-                  setUnlockPassword(text);
-                  setUnlockError(null);
-                }}
-                secureTextEntry
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              />
+              <Text style={[styles.dialogTitle, { color: colors.text }]}>{unlockModalTitle}</Text>
+              {unlocking ? (
+                <View style={styles.progressContainer}>
+                  <ActivityIndicator color={colors.accent} />
+                  <View style={[styles.progressBar, { borderColor: colors.border }]}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { backgroundColor: colors.accent, width: `${Math.max(10, unlockProgress * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <TextInput
+                  placeholder={t('common.password')}
+                  placeholderTextColor={colors.muted}
+                  value={unlockPassword}
+                  onChangeText={(text) => {
+                    setUnlockPassword(text);
+                    setUnlockError(null);
+                  }}
+                  secureTextEntry
+                  style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+                />
+              )}
               {unlockError ? <Text style={styles.error}>{unlockError}</Text> : null}
               <View style={styles.dialogActions}>
-                <Pressable style={[styles.dialogButton, { borderColor: colors.border }]} onPress={() => router.back()}>
+                <Pressable
+                  style={[styles.dialogButton, { borderColor: colors.border, opacity: unlocking ? 0.6 : 1 }]}
+                  onPress={() => router.back()}
+                  disabled={unlocking}
+                >
                   <Text style={[styles.dialogButtonText, { color: colors.text }]}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.dialogButton, styles.dialogPrimary, { backgroundColor: colors.accent }]}
+                  style={[styles.dialogButton, styles.dialogPrimary, { backgroundColor: colors.accent, opacity: unlocking ? 0.6 : 1 }]}
                   onPress={() => void applyDecryptedNote(unlockPassword)}
+                  disabled={unlocking}
                 >
-                  <Text style={styles.dialogPrimaryText}>{t('common.unlock')}</Text>
+                  {unlocking ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.dialogPrimaryText}>{t('common.unlock')}</Text>
+                  )}
                 </Pressable>
               </View>
             </View>
           </View>
         </Modal>
       ) : null}
+
     </>
   );
 }
@@ -182,6 +242,28 @@ const styles = StyleSheet.create({
   error: {
     color: '#f56c6c',
   },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  progressLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   dialogActions: {
     flexDirection: 'row',
     gap: 12,
@@ -204,6 +286,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
 
 
 

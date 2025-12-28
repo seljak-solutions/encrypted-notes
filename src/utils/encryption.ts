@@ -1,8 +1,8 @@
+import 'react-native-get-random-values';
 import { scrypt } from '@noble/hashes/scrypt';
 import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 import { chacha20poly1305 } from '@noble/ciphers/chacha.js';
-import type { ChecklistItem } from '@/src/features/notes/types';
-import type { AttachmentWithData } from '@/src/features/media/attachmentSerializer';
+import type { ChecklistItem, LinkItem } from '@/src/features/notes/types';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -14,11 +14,13 @@ const SCRYPT_PARAMS = {
   dkLen: 32,
 };
 
+const BINARY_VERSION = 1;
+
 export type SecureNotePayload = {
   content: string;
   plainText: string;
   checklist: ChecklistItem[];
-  attachments: AttachmentWithData[];
+  links: LinkItem[];
 };
 
 export type EncryptedPayloadInput = {
@@ -55,3 +57,32 @@ export const decryptNotePayload = async (password: string, payload: EncryptedPay
   const plaintext = cipher.decrypt(ciphertext);
   return JSON.parse(decoder.decode(plaintext));
 };
+
+export const encryptBinaryPayload = async (
+  password: string,
+  data: Uint8Array
+): Promise<{ version: number; salt: string; nonce: string; ciphertext: Uint8Array }> => {
+  const salt = randomBytes(16);
+  const key = await deriveKey(password, salt);
+  const nonce = randomBytes(12);
+  const cipher = chacha20poly1305(key, nonce);
+  const ciphertext = cipher.encrypt(data);
+  return {
+    version: BINARY_VERSION,
+    salt: bytesToHex(salt),
+    nonce: bytesToHex(nonce),
+    ciphertext,
+  };
+};
+
+export const decryptBinaryPayload = async (
+  password: string,
+  payload: { salt: string; nonce: string; ciphertext: Uint8Array }
+): Promise<Uint8Array> => {
+  const salt = hexToBytes(payload.salt);
+  const nonce = hexToBytes(payload.nonce);
+  const key = await deriveKey(password, salt);
+  const cipher = chacha20poly1305(key, nonce);
+  return cipher.decrypt(payload.ciphertext);
+};
+

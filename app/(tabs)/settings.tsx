@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, Modal, Alert, ScrollView } from 'react-native';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TextInput, Pressable, Modal, ScrollView } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { useNotesStore } from '@/src/stores/useNotesStore';
+import { AppDialog, type DialogConfig } from '@/src/components/AppDialog';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useSecurityStore } from '@/src/stores/useSecurityStore';
@@ -10,8 +11,9 @@ import { useLanguageStore, type LanguageCode } from '@/src/stores/useLanguageSto
 import { backupService } from '@/src/features/backup/backupService';
 import { noteRepository } from '@/src/features/notes/noteRepository';
 import { mediaService } from '@/src/features/media/mediaService';
+import { runQuery } from '@/src/db';
 import type { ThemeName } from '@/src/theme/palette';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from 'expo-router';
 
 
@@ -25,6 +27,7 @@ export default function SettingsScreen() {
   const enablePin = useSecurityStore((state) => state.enablePin);
   const disablePin = useSecurityStore((state) => state.disablePin);
   const unlockPin = useSecurityStore((state) => state.unlock);
+  const notes = useNotesStore((state) => state.notes);
   const refreshNotes = useNotesStore((state) => state.refresh);
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -33,6 +36,7 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [currentPin, setCurrentPin] = useState('');
   const [busy, setBusy] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState<DialogConfig | null>(null);
   const [pinModal, setPinModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [wipePin, setWipePin] = useState('');
   const [wipePinError, setWipePinError] = useState<string | null>(null);
@@ -56,14 +60,16 @@ export default function SettingsScreen() {
 
   const languageOptions = useMemo(
     () => [
-      { label: t('settings.language.german'), description: t('settings.language.germanDescription'), value: 'de' as LanguageCode },
-      { label: t('settings.language.english'), description: t('settings.language.englishDescription'), value: 'en' as LanguageCode },
-      { label: t('settings.language.russian'), description: t('settings.language.russianDescription'), value: 'ru' as LanguageCode },
+      { label: t('settings.language.german'), value: 'de' as LanguageCode },
+      { label: t('settings.language.english'), value: 'en' as LanguageCode },
+      { label: t('settings.language.russian'), value: 'ru' as LanguageCode },
     ],
     [t]
   );
 
   const showPinModal = (message: string) => setPinModal({ visible: true, message });
+  const closeDialog = () => setDialogConfig(null);
+  const openDialog = (config: DialogConfig) => setDialogConfig(config);
 
   const loadStorageUsage = useCallback(async () => {
     try {
@@ -91,6 +97,10 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadStorageUsage();
   }, [loadStorageUsage]);
+
+  useEffect(() => {
+    loadStorageUsage();
+  }, [notes, loadStorageUsage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -135,10 +145,10 @@ export default function SettingsScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(path);
       } else {
-        Alert.alert(t('settings.backup.exportSuccess'), path);
+        openDialog({ title: t('settings.backup.exportSuccess'), message: path });
       }
     } catch (error) {
-      Alert.alert(t('settings.backup.exportError'), (error as Error).message);
+      openDialog({ title: t('settings.backup.exportError'), message: (error as Error).message });
     } finally {
       setBusy(false);
     }
@@ -150,10 +160,10 @@ export default function SettingsScreen() {
       const ok = await backupService.importBackup();
       if (ok) {
         await refreshNotes();
-        Alert.alert(t('settings.backup.importSuccess'));
+        openDialog({ title: t('settings.backup.importSuccess') });
       }
     } catch (error) {
-      Alert.alert(t('settings.backup.importError'), (error as Error).message);
+      openDialog({ title: t('settings.backup.importError'), message: (error as Error).message });
     } finally {
       setBusy(false);
     }
@@ -200,12 +210,16 @@ export default function SettingsScreen() {
   const handleConfirmDataDeletion = async () => {
     setWipeBusy(true);
     try {
+      await runQuery('UPDATE notes SET lock_payload = NULL');
       await noteRepository.removeAll();
       await mediaService.clearAllAttachments();
+      await runQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      await runQuery('VACUUM');
       await refreshNotes();
+      await loadStorageUsage();
       setPinModal({ visible: true, message: t('settings.wipe.success') });
     } catch (error) {
-      Alert.alert(t('settings.wipe.error'), (error as Error).message);
+      openDialog({ title: t('settings.wipe.error'), message: (error as Error).message });
     } finally {
       setWipeBusy(false);
       setWipeConfirmVisible(false);
@@ -252,6 +266,12 @@ export default function SettingsScreen() {
                 secureTextEntry
                 style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
               />
+      <AppDialog
+        config={dialogConfig}
+        visible={Boolean(dialogConfig)}
+        fallbackActionLabel={t('common.ok')}
+        onClose={closeDialog}
+      />
             </>
           )}
           <Pressable style={[styles.button, { backgroundColor: colors.accent }]} onPress={handlePinToggle}>
@@ -291,7 +311,6 @@ export default function SettingsScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.themeLabel, { color: colors.text }]}>{option.label}</Text>
-                  <Text style={[styles.themeDescription, { color: colors.muted }]}>{option.description}</Text>
                 </View>
                 <View
                   style={[
@@ -326,7 +345,6 @@ export default function SettingsScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.themeLabel, { color: colors.text }]}>{option.label}</Text>
-                  <Text style={[styles.themeDescription, { color: colors.muted }]}>{option.description}</Text>
                 </View>
                 <View
                   style={[
@@ -541,6 +559,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
+
+
+
+
+
+
+
+
 
 
 

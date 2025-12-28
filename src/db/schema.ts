@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS notes (
   tags TEXT DEFAULT '[]',
   checklist TEXT DEFAULT '[]',
   attachments TEXT DEFAULT '[]',
+  links TEXT DEFAULT '[]',
   color TEXT,
   pinned INTEGER DEFAULT 0,
   is_locked INTEGER DEFAULT 0,

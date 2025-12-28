@@ -21,12 +21,12 @@ module.exports = function withAndroidBuildGradle(config) {
       const extBlock = `
   ext {
     // Read SDK versions from gradle.properties (set by expo-build-properties plugin)
-    buildToolsVersion = findProperty('android.buildToolsVersion') ?: '36.0.0'
+    buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
     minSdkVersion = (findProperty('android.minSdkVersion') ?: '24').toInteger()
-    compileSdkVersion = (findProperty('android.compileSdkVersion') ?: '36').toInteger()
-    targetSdkVersion = (findProperty('android.targetSdkVersion') ?: '36').toInteger()
+    compileSdkVersion = (findProperty('android.compileSdkVersion') ?: '35').toInteger()
+    targetSdkVersion = (findProperty('android.targetSdkVersion') ?: '35').toInteger()
     ndkVersion = findProperty('android.ndkVersion') ?: '27.1.12297006'
-    kotlinVersion = findProperty('android.kotlinVersion') ?: '2.1.20'
+    kotlinVersion = findProperty('android.kotlinVersion') ?: '2.0.21'
   }`;
 
       // Insert ext block right after 'buildscript {'

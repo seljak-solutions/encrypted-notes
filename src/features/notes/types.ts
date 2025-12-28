@@ -4,6 +4,12 @@ export type ChecklistItem = {
   done: boolean;
 };
 
+export type LinkItem = {
+  id: string;
+  label: string;
+  url: string;
+};
+
 export type Attachment = {
   id: string;
   type: 'image' | 'audio' | 'video';
@@ -20,6 +26,7 @@ export type NoteRecord = {
   tags: string[];
   checklist: ChecklistItem[];
   attachments: Attachment[];
+  links: LinkItem[];
   color?: string | null;
   pinned: boolean;
   is_locked: boolean;
@@ -36,6 +43,7 @@ export type NoteInput = {
   tags?: string[];
   checklist?: ChecklistItem[];
   attachments?: Attachment[];
+  links?: LinkItem[];
   color?: string | null;
   pinned?: boolean;
   isLocked?: boolean;
