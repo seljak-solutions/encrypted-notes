@@ -162,6 +162,8 @@ const rawEntries = {
   'settings.wipe.errors.invalid': { de: 'Falscher PIN.', en: 'Incorrect PIN.', ru: 'Неверный PIN-код.' },
   'settings.wipe.success': { de: 'Alle Daten gelöscht', en: 'All data deleted', ru: 'Все данные удалены' },
   'settings.wipe.error': { de: 'Fehler beim Löschen', en: 'Deletion failed', ru: 'Ошибка при удалении' },
+  'settings.privacy.title': { de: 'Datenschutz', en: 'Privacy', ru: 'Конфиденциальность' },
+  'settings.privacy.viewPolicy': { de: 'Datenschutzerklärung ansehen', en: 'View privacy policy', ru: 'Посмотреть политику конфиденциальности' },
 } as const;
 
 export type TranslationKey = keyof typeof rawEntries;

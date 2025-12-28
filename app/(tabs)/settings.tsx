@@ -15,6 +15,7 @@ import { runQuery } from '@/src/db';
 import type { ThemeName } from '@/src/theme/palette';
 import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 
 
 
@@ -226,6 +227,14 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleOpenPrivacyPolicy = async () => {
+    try {
+      await WebBrowser.openBrowserAsync('https://github.com/seljak-solutions/encrypted-notes/blob/master/privacy.html');
+    } catch (error) {
+      openDialog({ title: 'Error', message: (error as Error).message });
+    }
+  };
+
   const backdropColor = theme === 'light' ? 'rgba(15, 16, 25, 0.35)' : 'rgba(0, 0, 0, 0.55)';
 
   return (
@@ -360,7 +369,7 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}> 
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.title, { color: colors.text }]}>{t('settings.wipe.title')}</Text>
           <Text style={[styles.warningText, { color: colors.muted }]}>{t('settings.wipe.warning')}</Text>
           <Text style={[styles.storageText, { color: colors.text }]}>{storageUsageLabel}</Text>
@@ -373,6 +382,13 @@ export default function SettingsScreen() {
             disabled={wipeBusy}
           >
             <Text style={[styles.destructiveText, { color: theme === 'light' ? '#b22639' : '#ff607b' }]}>{t('settings.wipe.deleteButton')}</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.text }]}>{t('settings.privacy.title')}</Text>
+          <Pressable style={[styles.button, { backgroundColor: colors.accent }]} onPress={handleOpenPrivacyPolicy}>
+            <Text style={styles.buttonText}>{t('settings.privacy.viewPolicy')}</Text>
           </Pressable>
         </View>
       </ScrollView>
