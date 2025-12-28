@@ -1,0 +1,149 @@
+====================================
+KURZE BESCHREIBUNG (max 80 Zeichen)
+====================================
+
+Secure offline notes with encryption. No cloud, no tracking, total privacy.
+
+
+====================================
+VOLLSTÄNDIGE BESCHREIBUNG (max 4000)
+====================================
+
+🔐 ENCRYPTED NOTES - Your Private Note-Taking Companion
+
+Take control of your privacy with Encrypted Notes, the completely offline note-taking app that never sends your data anywhere. All your notes, checklists, and attachments stay exclusively on your device.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛡️ PRIVACY FIRST
+
+✓ 100% OFFLINE - No internet connection required or used
+✓ ZERO DATA COLLECTION - We don't collect, transmit, or store any data
+✓ NO TRACKING - No analytics, no telemetry, no third-party services
+✓ NO ADS - Clean, distraction-free experience
+✓ NO CLOUD - Everything stays local on your device
+✓ OPEN SOURCE - Transparent and auditable code
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 MILITARY-GRADE ENCRYPTION
+
+• Client-Side Encryption with ChaCha20-Poly1305
+• Password-protected notes with Scrypt key derivation
+• Encrypted media attachments
+• No password recovery - total security
+• Optional app-wide PIN lock
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ POWERFUL FEATURES
+
+📝 RICH TEXT EDITOR
+Format your notes with bold, italic, underline, lists, and more. Full-featured toolbar for professional-looking notes.
+
+✅ CHECKLISTS
+Create and manage to-do lists within notes. Perfect for shopping lists, tasks, and reminders.
+
+📎 ATTACHMENTS
+• Add photos from gallery or camera
+• Record and attach audio notes
+• Attach videos
+• All media encrypted when note is locked
+
+🔗 SAVE LINKS
+Store important URLs with descriptions directly in your notes.
+
+🏷️ ORGANIZE
+• Custom tags for easy categorization
+• Color-code your notes
+• Pin important notes to the top
+• Powerful search function
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎨 BEAUTIFUL & CUSTOMIZABLE
+
+• Three stunning themes: Light, Dark, and Dusk
+• Optimized for OLED displays
+• Clean, modern interface
+• Smooth animations
+
+🌍 MULTILINGUAL
+• German (Deutsch)
+• English
+• Russian (Русский)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💾 BACKUP & RESTORE
+
+• Export all notes as JSON
+• Import backups anytime
+• Complete control over your data
+• Encrypted notes stay encrypted in backups
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 PERFECT FOR
+
+• Security-conscious users
+• Journalists and researchers
+• Business professionals
+• Students
+• Anyone who values privacy
+• Personal journaling
+• Sensitive information storage
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ TECHNICAL DETAILS
+
+• Built with React Native and Expo
+• Local SQLite database
+• ChaCha20-Poly1305 encryption algorithm
+• Scrypt password hashing (N=2^9, r=8, p=1)
+• 256-bit encryption keys
+• No internet permissions required
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❓ FREQUENTLY ASKED QUESTIONS
+
+Q: Is my data really private?
+A: Yes! The app never connects to the internet. All data stays on your device.
+
+Q: What if I forget my password?
+A: Encrypted notes cannot be recovered without the password. This ensures maximum security.
+
+Q: Can I sync across devices?
+A: No cloud sync to protect your privacy. Use manual backup/restore instead.
+
+Q: Does it work without internet?
+A: Yes! The app is designed to work 100% offline.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔓 OPEN SOURCE
+
+The source code is publicly available on GitHub. You can verify that we do exactly what we promise - nothing more, nothing less.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📧 SUPPORT & FEEDBACK
+
+Need help? Found a bug? Have suggestions?
+Email: Seljak.Soulutions@gmail.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your notes. Your device. Your privacy.
+
+Download Encrypted Notes today and experience true digital privacy.
+
+
+====================================
+ÄNDERUNGEN:
+====================================
+✓ "End-to-End Encryption" → "Client-Side Encryption"
+✓ Korrekte technische Beschreibung
+✓ Transparent und ehrlich

@@ -1,6 +1,6 @@
 # 🔐 Encrypted Notes
 
-A privacy-focused, offline-first note-taking app with end-to-end encryption. Your notes, your device, your privacy.
+A privacy-focused, offline-first note-taking app with client-side encryption. Your notes, your device, your privacy.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![React Native](https://img.shields.io/badge/React%20Native-0.79-61dafb.svg)](https://reactnative.dev/)
@@ -12,7 +12,7 @@ A privacy-focused, offline-first note-taking app with end-to-end encryption. You
 
 ### 🔒 Privacy & Security First
 - **100% Offline** - No data ever leaves your device
-- **End-to-End Encryption** - Password-protected notes using ChaCha20-Poly1305
+- **Client-Side Encryption** - Password-protected notes using ChaCha20-Poly1305
 - **No Data Collection** - Zero telemetry, analytics, or tracking
 - **No Cloud Storage** - Everything stays on your device
 - **Open Source** - Transparent and auditable code
