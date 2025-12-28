@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenschutzerklärung - Encrypted Notes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            font-size: 1.8em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-top: 20px;
+        }
+
+        h3 {
+            color: #34495e;
+            font-size: 1.3em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul {
+            margin-bottom: 15px;
+            margin-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .update-date {
+            color: #7f8c8d;
+            font-style: italic;
+            margin-bottom: 30px;
+        }
+
+        .highlight {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .summary {
+            background-color: #e8f8f5;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border: 2px solid #27ae60;
+        }
+
+        .summary h2 {
+            color: #27ae60;
+            margin-top: 0;
+        }
+
+        strong {
+            color: #2c3e50;
+        }
+
+        .contact-info {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+
+        hr {
+            margin: 40px 0;
+            border: none;
+            border-top: 2px solid #ecf0f1;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Datenschutzerklärung für Encrypted Notes</h1>
+        <p class="update-date"><strong>Letzte Aktualisierung: 28. Dezember 2025</strong></p>
+
+        <h2>1. Einleitung</h2>
+        <p>Diese Datenschutzerklärung beschreibt, wie die App "Encrypted Notes" (im Folgenden "die App") mit Ihren Daten umgeht. Der Schutz Ihrer Privatsphäre ist uns sehr wichtig.</p>
+
+        <h2>2. Verantwortlicher</h2>
+        <div class="contact-info">
+            <p><strong>Lukjan Artemenko</strong><br>
+            Wohlerstrasse 4, 5619 Büttikon AG, Schweiz<br>
+            E-Mail: Seljak.Soulutions@gmail.com</p>
+        </div>
+
+        <h2>3. Grundsatz: Keine Datensammlung</h2>
+        <div class="highlight">
+            <p><strong>Encrypted Notes ist eine vollständig offline arbeitende App. Wir sammeln, übertragen oder speichern keinerlei persönliche Daten auf externen Servern.</strong></p>
+            <p>Alle Ihre Daten verbleiben ausschließlich auf Ihrem Gerät und werden niemals an uns oder Dritte übertragen.</p>
+        </div>
+
+        <h2>4. Lokale Datenspeicherung</h2>
+
+        <h3>4.1 Notizen und Inhalte</h3>
+        <ul>
+            <li>Alle Notizen werden lokal auf Ihrem Gerät in einer verschlüsselten SQLite-Datenbank gespeichert</li>
+            <li>Die Verschlüsselung erfolgt mit ChaCha20-Poly1305 und Scrypt-Key-Derivation</li>
+            <li>Ihre Notizen verlassen niemals Ihr Gerät, außer Sie exportieren diese manuell</li>
+        </ul>
+
+        <h3>4.2 Medienanhänge</h3>
+        <ul>
+            <li>Bilder, Audio-Aufnahmen und andere Anhänge werden lokal im App-Speicher Ihres Geräts gespeichert</li>
+            <li>Diese Dateien werden verschlüsselt gespeichert, wenn die Notiz mit einem Passwort geschützt ist</li>
+            <li>Kein Upload oder externe Übertragung findet statt</li>
+        </ul>
+
+        <h3>4.3 Backups</h3>
+        <ul>
+            <li>Backups werden lokal auf Ihrem Gerät erstellt</li>
+            <li>Sie haben die volle Kontrolle über Export und Import von Backups</li>
+            <li>Backups enthalten Ihre Notizen und Anhänge im JSON-Format</li>
+            <li>Verschlüsselte Notizen bleiben auch im Backup verschlüsselt</li>
+        </ul>
+
+        <h2>5. Berechtigungen</h2>
+        <p>Die App benötigt folgende Berechtigungen:</p>
+
+        <h3>5.1 Speicher- und Medienzugriff</h3>
+        <ul>
+            <li><strong>READ_MEDIA_IMAGES</strong>: Zum Anhängen von Bildern aus Ihrer Galerie an Notizen</li>
+            <li><strong>READ_MEDIA_AUDIO</strong>: Zum Anhängen von Audio-Dateien an Notizen</li>
+            <li><strong>RECORD_AUDIO</strong>: Zum Erstellen von Sprachaufnahmen direkt in der App</li>
+        </ul>
+        <p><strong>Wichtig:</strong> Diese Berechtigungen werden ausschließlich verwendet, um von Ihnen ausgewählte Medien zu Ihren Notizen hinzuzufügen. Es erfolgt kein automatischer Zugriff auf Ihre Medien oder eine Übertragung an externe Server.</p>
+
+        <h2>6. Keine externe Datenübertragung</h2>
+        <p>Die App:</p>
+        <ul>
+            <li>Sendet keine Daten an externe Server</li>
+            <li>Kontaktiert keine APIs oder Webdienste</li>
+            <li>Enthält keine Tracking- oder Analytics-Software</li>
+            <li>Enthält keine Werbung</li>
+            <li>Nutzt keine Cloud-Dienste</li>
+            <li>Teilt keine Daten mit Dritten</li>
+        </ul>
+
+        <h2>7. Verschlüsselung und Sicherheit</h2>
+        <ul>
+            <li>Notizen können mit einem Passwort geschützt werden</li>
+            <li>Die Verschlüsselung erfolgt mit modernen kryptographischen Algorithmen:
+                <ul>
+                    <li>ChaCha20-Poly1305 für symmetrische Verschlüsselung</li>
+                    <li>Scrypt für Passwort-basierte Schlüsselableitung</li>
+                </ul>
+            </li>
+            <li>Verschlüsselte Notizen können nur mit dem korrekten Passwort gelesen werden</li>
+            <li>Das Passwort wird nicht gespeichert - wenn Sie es vergessen, können die Notizen nicht wiederhergestellt werden</li>
+        </ul>
+
+        <h2>8. Datenweitergabe</h2>
+        <p>Da keine Daten gesammelt oder übertragen werden, findet auch keine Weitergabe an Dritte statt.</p>
+
+        <h2>9. Ihre Rechte</h2>
+        <p>Da wir keine personenbezogenen Daten sammeln oder verarbeiten, entstehen keine DSGVO-relevanten Verpflichtungen bezüglich:</p>
+        <ul>
+            <li>Auskunftsrecht</li>
+            <li>Recht auf Berichtigung</li>
+            <li>Recht auf Löschung</li>
+            <li>Recht auf Datenübertragbarkeit</li>
+        </ul>
+        <p>Sie haben jederzeit die volle Kontrolle über Ihre Daten:</p>
+        <ul>
+            <li>Alle Daten befinden sich ausschließlich auf Ihrem Gerät</li>
+            <li>Sie können die App jederzeit deinstallieren, wodurch alle lokalen Daten gelöscht werden</li>
+            <li>Sie können einzelne Notizen jederzeit löschen</li>
+            <li>Sie können Backups erstellen und diese nach eigenem Ermessen aufbewahren oder löschen</li>
+        </ul>
+
+        <h2>10. Datensicherheit</h2>
+        <p>Die Sicherheit Ihrer Daten liegt in Ihrer Verantwortung:</p>
+        <ul>
+            <li>Schützen Sie Ihr Gerät mit einem sicheren Sperrbildschirm</li>
+            <li>Verwenden Sie starke Passwörter für verschlüsselte Notizen</li>
+            <li>Erstellen Sie regelmäßig Backups und bewahren Sie diese sicher auf</li>
+            <li>Bei Geräteverlust sind nur passwortgeschützte Notizen vor Zugriff geschützt</li>
+        </ul>
+
+        <h2>11. Kinder</h2>
+        <p>Die App richtet sich an alle Altersgruppen. Da keine Daten gesammelt werden, bestehen keine besonderen Anforderungen bezüglich der Nutzung durch Minderjährige.</p>
+
+        <h2>12. Änderungen dieser Datenschutzerklärung</h2>
+        <p>Wir behalten uns vor, diese Datenschutzerklärung zu aktualisieren. Änderungen werden über App-Updates kommuniziert. Die jeweils aktuelle Version finden Sie unter:<br>
+        <a href="https://github.com/seljak-solutions/encrypted-notes/blob/master/privacy.html">https://github.com/seljak-solutions/encrypted-notes/blob/master/privacy.html</a></p>
+
+        <h2>13. Kontakt</h2>
+        <p>Bei Fragen zum Datenschutz können Sie uns kontaktieren:</p>
+        <div class="contact-info">
+            <p><strong>E-Mail:</strong> Seljak.Soulutions@gmail.com</p>
+        </div>
+
+        <hr>
+
+        <div class="summary">
+            <h2>Zusammenfassung</h2>
+            <p><strong>Encrypted Notes ist eine datenschutzfreundliche App, die vollständig offline arbeitet:</strong></p>
+            <ul>
+                <li>✓ Keine Datensammlung</li>
+                <li>✓ Keine Server-Kommunikation</li>
+                <li>✓ Keine Drittanbieter-Dienste</li>
+                <li>✓ Keine Analytics oder Tracking</li>
+                <li>✓ Keine Werbung</li>
+                <li>✓ Alle Daten bleiben lokal auf Ihrem Gerät</li>
+                <li>✓ End-to-End-Verschlüsselung für geschützte Notizen</li>
+                <li>✓ Sie haben die volle Kontrolle über Ihre Daten</li>
+            </ul>
+            <p><strong>Ihre Privatsphäre ist vollständig geschützt.</strong></p>
+        </div>
+    </div>
+</body>
+</html>
